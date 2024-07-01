@@ -1,4 +1,4 @@
-name: Build and Deploy Docker Image
+name: Build, Push, and Deploy Docker Image for 2048
 
 on:
   push:
@@ -6,30 +6,40 @@ on:
       - master
 
 jobs:
-  build:
+  build_and_publish:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v1
+      - name: Log in to GitHub Container Registry
+        run: echo "${{ secrets.GH_PAT }}" | docker login ghcr.io -u madhucheran --password-stdin
 
-      - name: Build and push Docker image to GHCR
+      - name: Build and push the Docker image
         run: |
-          echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
-          docker buildx build --platform linux/amd64,linux/arm64 -t ghcr.io/${{ github.repository_owner }}/2048-dockerfile:latest --push .
+          docker build . --tag ghcr.io/madhucheran/2048-ghcr:latest
+          docker push ghcr.io/madhucheran/2048-ghcr:latest
 
   deploy:
+    needs: build_and_publish
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
-      - name: Pull and run Docker image from GHCR
-        run: |
-          echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
-          docker pull ghcr.io/${{ github.repository_owner }}/2048-dockerfile:latest
-          docker run -d -p 80:80 ghcr.io/${{ github.repository_owner }}/2048-dockerfile:latest
+      - name: Log in to GitHub Container Registry
+        run: echo "${{ secrets.GH_PAT }}" | docker login ghcr.io -u madhucheran --password-stdin
+
+      - name: Pull Docker image
+        run: docker pull ghcr.io/madhucheran/2048-ghcr:latest
+
+      - name: Run Docker container
+        run: docker run -d -p 80:80 ghcr.io/madhucheran/2048-ghcr:latest
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GIT_TOKEN }}
+          publish_dir: ./public
