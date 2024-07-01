@@ -3,7 +3,7 @@ name: Build and Deploy Docker Image
 on:
   push:
     branches:
-      - master  # Set the branch to trigger on
+      - main
 
 jobs:
   build:
@@ -19,8 +19,7 @@ jobs:
       - name: Build and push Docker image to GHCR
         run: |
           echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
-          docker buildx build --platform linux/amd64,linux/arm64 -t ghcr.io/${{ github.repository_owner }}/2048-dockerfile:latest .
-          docker push ghcr.io/${{ github.repository_owner }}/2048-dockerfile:latest
+          docker buildx build --platform linux/amd64,linux/arm64 -t ghcr.io/${{ github.repository_owner }}/2048-dockerfile:latest --push .
 
   deploy:
     runs-on: ubuntu-latest
@@ -31,5 +30,6 @@ jobs:
 
       - name: Pull and run Docker image from GHCR
         run: |
+          echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
           docker pull ghcr.io/${{ github.repository_owner }}/2048-dockerfile:latest
           docker run -d -p 80:80 ghcr.io/${{ github.repository_owner }}/2048-dockerfile:latest
